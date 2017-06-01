@@ -92,6 +92,10 @@ export const PaddedDiv = styled.div`
   padding-bottom: ${props => (props.fullscreen ? (dim.frameTitlebarHeight + 20) + 'px' : '20px')};
 `
 
+export const PaddedTableViewDiv = styled(PaddedDiv)`
+  width: 100%
+`
+
 export const StyledFrameSidebar = styled.ul`
   line-height: 33px;
   width: 45px;
@@ -106,8 +110,10 @@ export const StyledFrameSidebar = styled.ul`
 
 export const StyledFrameStatusbar = styled.div`
   border-top: ${props => props.theme.inFrameBorder};
-  height: ${dim.frameStatusbarHeight + 3}px;
+  height: ${dim.frameStatusbarHeight + 1}px;
   ${props => props.fullscreen ? 'margin-top: -78px;' : ''}
+  display: flex;
+  flex-direction: row;
 `
 
 export const StyledFrameTitleBar = styled.div`
@@ -143,6 +149,11 @@ export const StyledFrameCommand = styled.label`
     content: '$ '
   }
 `
+
+export const StyledFrameStatusbarText = styled.label`
+  flex: 1 1 auto;
+`
+
 export const DottedLineHover = styled.span`
   cursor: pointer;
   &:hover {
@@ -212,7 +223,7 @@ export const StyledBr = styled.br`
 export const StyledPreformattedArea = styled.pre`
   font-family: Monaco, "Courier New", Terminal, monospace;
   font-size: 14px;
-  white-space: pre-line;
+  white-space: pre-wrap;
   padding: 12px 16px;
   margin: 0;
   background: none;
@@ -225,6 +236,11 @@ export const ErrorText = styled.span`
   padding-left: 5px;
   line-height: 35px;
 `
+export const StyledStatsBarContainer = styled.div`
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+`
 export const StyledStatsBar = styled.div`
   min-height: 39px;
   line-height: 39px;
@@ -235,6 +251,7 @@ export const StyledStatsBar = styled.div`
   white-space: nowrap;
   overflow: hidden;
   padding-left: 24px;
+  width: 100%;
 `
 
 export const StyledSchemaBody = styled(StyledPreformattedArea)`
@@ -271,10 +288,14 @@ export const DropdownButton = styled.li`
   }
   display: inline-block;
   &:hover {
-    > .dropdown-content {
+    > ul li {
     display: block;
     }
   };
+`
+
+export const DropdownList = styled.ul`
+
 `
 
 export const DropdownContent = styled.li`
@@ -299,5 +320,72 @@ export const DropdownItem = styled.a`
     color: #262626;
     text-decoration: none;
     background-color: #f5f5f5;
+  }
+`
+
+export const StyledRightPartial = styled.div`
+  float: right;
+`
+
+export const StyledWidthSliderContainer = styled.div`
+  margin-right: 10px;
+  text-transform: uppercase;
+  font-weight: bold;
+  font-size: 11px;
+`
+
+export const StyledWidthSlider = styled.input`
+  width: 150px;
+  background: transparent;
+  margin-left: 10px;
+  vertical-align: middle;
+  -webkit-appearance: none;
+  outline: none;
+  -webkit-tap-highlight-color: rgba(255, 255, 255, 0);
+  background: #ddd;
+  border-radius: 14px;
+  padding: 1px 2px;
+  &::-moz-range-track {
+    border: inherit;
+    background: transparent;
+  }
+  &::-ms-track {
+    border: inherit;
+    color: transparent;
+    background: transparent;
+  }
+  &::-ms-fill-lower, &::-ms-fill-upper {
+    background: transparent;
+  }
+  &::-ms-tooltip {
+    display: none;
+  }
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 7px;
+    cursor: pointer;
+    border: none;
+    background-color: #008BC3;
+    outline: none;
+  }
+  &::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 7px;
+    cursor: pointer;
+    border: none;
+    background-color: #008BC3;
+    outline: none;
+  }
+  &::-ms-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 7px;
+    cursor: pointer;
+    border: none;
+    background-color: #008BC3;
+    outline: none;
   }
 `

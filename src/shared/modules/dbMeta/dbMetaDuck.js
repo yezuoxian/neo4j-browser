@@ -29,7 +29,8 @@ import {
   DISCONNECTION_SUCCESS,
   LOST_CONNECTION,
   UPDATE_CONNECTION_STATE,
-  setRetainCredentials
+  setRetainCredentials,
+  setAuthEnabled
 } from 'shared/modules/connections/connectionsDuck'
 
 export const NAME = 'meta'
@@ -38,22 +39,6 @@ export const UPDATE_SERVER = 'meta/UPDATE_SERVER'
 export const UPDATE_SETTINGS = 'meta/UPDATE_SETTINGS'
 export const CLEAR = 'meta/CLEAR'
 export const FORCE_FETCH = 'meta/FORCE_FETCH'
-
-const initialState = {
-  labels: [],
-  relationshipTypes: [],
-  properties: [],
-  functions: [],
-  procedures: [],
-  server: {
-    version: null,
-    edition: null,
-    storeId: null
-  },
-  settings: {
-    'browser.allow_outgoing_connections': false
-  }
-}
 
 /**
  * Selectors
@@ -85,6 +70,7 @@ export const getStoreId = (state) => state[NAME].server.storeId
 export const getAvailableSettings = (state) => (state[NAME] || initialState).settings
 export const allowOutgoingConnections = (state) => getAvailableSettings(state)['browser.allow_outgoing_connections']
 export const credentialsTimeout = (state) => getAvailableSettings(state)['browser.credential_timeout'] || 0
+export const getRemoteContentHostnameWhitelist = (state) => getAvailableSettings(state)['browser.remote_content_hostname_whitelist'] || initialState.settings['browser.remote_content_hostname_whitelist']
 export const shouldRetainConnectionCredentials = (state) => {
   const conf = getAvailableSettings(state)['browser.retain_connection_credentials']
   if (conf === null || typeof conf === 'undefined') return true
@@ -137,6 +123,24 @@ function updateMetaForContext (state, meta, context) {
     properties,
     functions,
     procedures
+  }
+}
+
+// Initial state
+const initialState = {
+  labels: [],
+  relationshipTypes: [],
+  properties: [],
+  functions: [],
+  procedures: [],
+  server: {
+    version: null,
+    edition: null,
+    storeId: null
+  },
+  settings: {
+    'browser.allow_outgoing_connections': false,
+    'browser.remote_content_hostname_whitelist': 'guides.neo4j.com, localhost'
   }
 }
 
@@ -256,6 +260,20 @@ export const dbMetaEpic = (some$, store) =>
               }
               store.dispatch(setRetainCredentials(retainCredentials))
               store.dispatch(updateSettings(settings))
+            })
+        })
+        .takeUntil(some$.ofType(LOST_CONNECTION).filter(connectionLossFilter))
+        // Server security settings
+        .mergeMap(() => {
+          return getServerConfig(['dbms.security'])
+            .then((settings) => {
+              if (!settings) return
+              const authEnabledSetting = 'dbms.security.auth_enabled'
+              let authEnabled = true
+              if (typeof settings[authEnabledSetting] !== 'undefined' && isConfigValFalsy(settings[authEnabledSetting])) {
+                authEnabled = false
+              }
+              store.dispatch(setAuthEnabled(authEnabled))
             })
         })
         .takeUntil(some$.ofType(LOST_CONNECTION).filter(connectionLossFilter))

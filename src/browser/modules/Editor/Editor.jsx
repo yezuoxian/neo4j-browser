@@ -26,7 +26,7 @@ import { executeCommand, executeSystemCommand } from 'shared/modules/commands/co
 import * as favorites from 'shared/modules/favorites/favoritesDuck'
 import { SET_CONTENT, FOCUS, EXPAND } from 'shared/modules/editor/editorDuck'
 import { getHistory } from 'shared/modules/history/historyDuck'
-import { getSettings } from 'shared/modules/settings/settingsDuck'
+import { getCmdChar, shouldEditorAutocomplete } from 'shared/modules/settings/settingsDuck'
 import { Bar, ActionButtonSection, EditorWrapper } from './styled'
 import { EditorButton } from 'browser-components/buttons'
 import { CYPHER_REQUEST } from 'shared/modules/cypher/cypherDuck'
@@ -41,7 +41,6 @@ export class Editor extends Component {
   constructor (props) {
     super(props)
     this.state = {
-      code: props.content || '',
       historyIndex: -1,
       buffer: '',
       mode: 'cypher',
@@ -74,7 +73,7 @@ export class Editor extends Component {
   }
 
   execCurrent () {
-    const value = this.codeMirror.getValue().trim() || this.state.code
+    const value = this.getEditorValue()
     if (!value) return
     this.props.onExecute(value)//exec
     this.clearEditor()
@@ -133,7 +132,7 @@ export class Editor extends Component {
   }
 
   triggerAutocompletion (cm, changed) {
-    if (changed.text.length !== 1) {
+    if (changed.text.length !== 1 || !this.props.enableEditorAutocomplete) {
       return
     }
 
@@ -152,7 +151,7 @@ export class Editor extends Component {
   }
 
   componentWillReceiveProps (nextProps) {
-    if (nextProps.content !== null && nextProps.content !== this.state.code) {
+    if (nextProps.content !== null && nextProps.content !== this.getEditorValue()) {
       this.setEditorValue(nextProps.content)
     }
   }
@@ -161,6 +160,11 @@ export class Editor extends Component {
     this.debouncedCheckForHints = debounce(this.checkForHints, 350, this)
     this.codeMirror = this.editor.getCodeMirror()
     this.codeMirror.on('change', this.triggerAutocompletion.bind(this))
+
+    if (this.props.content) {
+      this.setEditorValue(this.props.content)
+    }
+
     if (this.props.bus) {
       this.props.bus.take(SET_CONTENT, (msg) => {
         this.setEditorValue(msg.message)
@@ -170,9 +174,15 @@ export class Editor extends Component {
     }
   }
 
+  getEditorValue () {
+    return this.codeMirror ? this.codeMirror.getValue().trim() : ''
+  }
+
   setEditorValue (cmd) {
     this.codeMirror.setValue(cmd)
-    this.updateCode(cmd, () => this.focusEditor())
+    this.updateCode(cmd, undefined, () => {
+      this.focusEditor()
+    })
   }
 
   updateCode (newCode, change, cb = () => {
@@ -192,7 +202,6 @@ export class Editor extends Component {
     const lastPosition = change && change.to
 
     this.setState({
-      code: newCode,
       mode,
       lastPosition: lastPosition ? { line: lastPosition.line, column: lastPosition.ch } : this.state.lastPosition,
       editorHeight: this.editor && this.editor.base.clientHeight
@@ -227,7 +236,7 @@ export class Editor extends Component {
           gutter.innerHTML = '<i class="fa fa-exclamation-triangle gutter-warning gutter-warning" aria-hidden="true"></i>'
           gutter.title = `${notification.title}\n${notification.description}`
           gutter.onclick = () => {
-            const action = executeSystemCommand(`EXPLAIN ${this.state.code}`)
+            const action = executeSystemCommand(`EXPLAIN ${this.getEditorValue()}`)
             action.forceView = viewTypes.WARNINGS
             this.props.bus.send(action.type, action)
           }
@@ -299,7 +308,6 @@ export class Editor extends Component {
             ref={(ref) => {
               this.editor = ref
             }}
-            value={this.state.code}
             onChange={updateCode}
             options={options}
             schema={this.props.schema}
@@ -308,22 +316,22 @@ export class Editor extends Component {
         </EditorWrapper>
         <ActionButtonSection>
           <EditorButton
-            onClick={() => this.props.onFavortieClick(this.state.code)}
-            disabled={this.state.code.length < 1}
+            onClick={() => this.props.onFavortieClick(this.getEditorValue())}
+            disabled={this.getEditorValue().length < 1}
             title='Favorite'
             hoverIcon='"\58"'
             icon='"\73"'
           />
           <EditorButton
             onClick={() => this.clearEditor()}
-            disabled={this.state.code.length < 1}
+            disabled={this.getEditorValue().length < 1}
             title='Clear'
             hoverIcon='"\e005"'
             icon='"\5e"'
           />
           <EditorButton
             onClick={() => this.execCurrent()}
-            disabled={this.state.code.length < 1}
+            disabled={this.getEditorValue().length < 1}
             title='Play'
             hoverIcon='"\e002"'
             icon='"\77"'
@@ -349,9 +357,10 @@ const mapDispatchToProps = (dispatch, ownProps) => {
 
 const mapStateToProps = (state) => {
   return {
+    enableEditorAutocomplete: shouldEditorAutocomplete(state),
     content: null,
     history: getHistory(state),
-    cmdchar: getSettings(state).cmdchar,
+    cmdchar: getCmdChar(state),
     schema: {
       consoleCommands: consoleCommands,
       labels: state.meta.labels.map(schemaConvert.toLabel),

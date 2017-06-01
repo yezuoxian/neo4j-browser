@@ -19,18 +19,19 @@
  */
 
 import {Component} from 'preact'
-import FrameTemplate from '../FrameTemplate'
 import {connect} from 'preact-redux'
 import {withBus} from 'preact-suber'
+import FrameTemplate from '../FrameTemplate'
+import bolt from 'services/bolt/bolt'
 import {listQueriesProcedure, killQueriesProcedure} from 'shared/modules/cypher/queriesProcedureHelper'
 import {getAvailableProcedures} from 'shared/modules/features/featuresDuck'
 import {CYPHER_REQUEST, CLUSTER_CYPHER_REQUEST, AD_HOC_CYPHER_REQUEST} from 'shared/modules/cypher/cypherDuck'
 import {getConnectionState, CONNECTED_STATE} from 'shared/modules/connections/connectionsDuck'
 import {ConfirmationButton} from 'browser-components/buttons/ConfirmationButton'
-import {StyledTh, StyledHeaderRow, StyledTable, StyledTd, Code, StyledStatusBar, AutoRefreshToogle, RefreshQueriesButton, AutoRefreshSpan} from './styled'
+import {StyledTh, StyledHeaderRow, StyledTable, StyledTd, Code, StyledStatusBar, AutoRefreshToogle, RefreshQueriesButton, AutoRefreshSpan, StatusbarWrapper} from './styled'
 import {EnterpriseOnlyFrame} from 'browser-components/EditionView'
 import {RefreshIcon} from 'browser-components/icons/Icons'
-import Visible from 'browser-components/Visible'
+import Render from 'browser-components/Render'
 import FrameError from '../FrameError'
 
 export class QueriesFrame extends Component {
@@ -111,7 +112,7 @@ export class QueriesFrame extends Component {
     return result.records.map((queryRecord) => {
       let queryInfo = {}
       queryRecord.keys.forEach((key, idx) => {
-        queryInfo[key] = queryRecord._fields[idx]
+        queryInfo[key] = bolt.itemIntToNumber(queryRecord._fields[idx])
       })
       if (queryRecord.host) {
         queryInfo.host = 'bolt://' + queryRecord.host
@@ -167,7 +168,7 @@ export class QueriesFrame extends Component {
           <StyledTd title={query.query} width={tableHeaderSizes[2][1]}><Code>{query.query}</Code></StyledTd>
           <StyledTd width={tableHeaderSizes[3][1]}><Code>{query.parameters}</Code></StyledTd>
           <StyledTd width={tableHeaderSizes[4][1]}><Code>{query.metaData}</Code></StyledTd>
-          <StyledTd width={tableHeaderSizes[5][1]}>{query.elapsedTime}</StyledTd>
+          <StyledTd width={tableHeaderSizes[5][1]}>{query.elapsedTimeMillis} ms</StyledTd>
           <StyledTd width={tableHeaderSizes[6][1]}><ConfirmationButton
             onConfirmed={this.onCancelQuery.bind(this, query.host, query.queryId)} /></StyledTd>
         </tr>)
@@ -205,11 +206,11 @@ export class QueriesFrame extends Component {
     if (this.canListQueries()) {
       frameContents = this.constructViewFromQueryList(this.state.queries)
       statusbar = (
-        <div>
-          <Visible if={this.state.errors}>
+        <StatusbarWrapper>
+          <Render if={this.state.errors}>
             <FrameError message={(this.state.errors || []).join(', ')} />
-          </Visible>
-          <Visible if={this.state.success}>
+          </Render>
+          <Render if={this.state.success}>
             <StyledStatusBar>
               {this.state.success}
               <RefreshQueriesButton onClick={() => this.getRunningQueries()}><RefreshIcon /></RefreshQueriesButton>
@@ -217,8 +218,8 @@ export class QueriesFrame extends Component {
                 <AutoRefreshToogle checked={this.state.autoRefresh} onClick={(e) => this.setAutoRefresh(e.target.checked)} />
               </AutoRefreshSpan>
             </StyledStatusBar>
-          </Visible>
-        </div>
+          </Render>
+        </StatusbarWrapper>
       )
     } else {
       frameContents = (<EnterpriseOnlyFrame command={this.props.frame.cmd} />)

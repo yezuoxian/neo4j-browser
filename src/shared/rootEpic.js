@@ -19,7 +19,7 @@
  */
 
 import { combineEpics } from 'redux-observable'
-import { handleCommandsEpic, postConnectCmdEpic } from './modules/commands/commandsDuck'
+import { handleCommandsEpic, postConnectCmdEpic, fetchGuideFromWhitelistEpic } from './modules/commands/commandsDuck'
 import { retainCredentialsSettingsEpic, checkSettingsForRoutingDriver, connectEpic, disconnectEpic, startupConnectEpic, disconnectSuccessEpic, startupConnectionSuccessEpic, startupConnectionFailEpic, detectActiveConnectionChangeEpic, connectionLostEpic } from './modules/connections/connectionsDuck'
 import { dbMetaEpic, clearMetaOnDisconnectEpic } from './modules/dbMeta/dbMetaDuck'
 import { cancelRequestEpic } from './modules/requests/requestsDuck'
@@ -31,10 +31,12 @@ import { featuresDiscoveryEpic } from './modules/features/featuresDuck'
 import { syncItemsEpic, clearSyncEpic, syncFavoritesEpic, loadFavoritesFromSyncEpic, loadFoldersFromSyncEpic, syncFoldersEpic } from './modules/sync/syncDuck'
 import { credentialsTimeoutEpic } from './modules/credentialsPolicy/credentialsPolicyDuck'
 import { bootEpic, incrementEventEpic, udcStartupEpic, trackSyncLogoutEpic, trackConnectsEpic, eventFiredEpic } from './modules/udc/udcDuck'
+import { maxFramesConfigEpic } from './modules/stream/streamDuck'
 
 export default combineEpics(
   handleCommandsEpic,
   postConnectCmdEpic,
+  fetchGuideFromWhitelistEpic,
   connectionLostEpic,
   retainCredentialsSettingsEpic,
   checkSettingsForRoutingDriver,
@@ -68,5 +70,6 @@ export default combineEpics(
   incrementEventEpic,
   trackSyncLogoutEpic,
   trackConnectsEpic,
-  eventFiredEpic
+  eventFiredEpic,
+  maxFramesConfigEpic
 )

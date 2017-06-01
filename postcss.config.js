@@ -18,7 +18,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-const Visible = ({if: cond, children}) => {
-  return cond ? children[0] : null
+module.exports = {
+  plugins: {
+    'precss': {},
+    'autoprefixer': {
+      browsers: [
+        'last 3 version',
+        'ie >= 10'
+      ]
+    }
+  }
 }
-export default Visible

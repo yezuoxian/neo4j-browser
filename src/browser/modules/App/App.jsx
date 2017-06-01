@@ -27,15 +27,16 @@ import { getTheme, getCmdChar } from 'shared/modules/settings/settingsDuck'
 import { FOCUS, EXPAND } from 'shared/modules/editor/editorDuck'
 import { wasUnknownCommand, getErrorMessage } from 'shared/modules/commands/commandsDuck'
 import { allowOutgoingConnections } from 'shared/modules/dbMeta/dbMetaDuck'
-import { getActiveConnection, getConnectionState } from 'shared/modules/connections/connectionsDuck'
+import { getActiveConnection, getConnectionState, getActiveConnectionData } from 'shared/modules/connections/connectionsDuck'
 import { toggle } from 'shared/modules/sidebar/sidebarDuck'
 
 import { StyledWrapper, StyledApp, StyledBody, StyledMainWrapper } from './styled'
 import Main from '../Main/Main'
 import Sidebar from '../Sidebar/Sidebar'
 import UserInteraction from '../UserInteraction'
+import DocTitle from '../DocTitle'
 import Intercom from '../Intercom'
-import Visible from 'browser-components/Visible'
+import Render from 'browser-components/Render'
 
 class App extends Component {
   componentDidMount () {
@@ -61,10 +62,11 @@ class App extends Component {
     return (
       <ThemeProvider theme={themeData}>
         <StyledWrapper>
+          <DocTitle titleString={this.props.titleString} />
           <UserInteraction />
-          <Visible if={loadUdc}>
+          <Render if={loadUdc}>
             <Intercom appID='lq70afwx' />
-          </Visible>
+          </Render>
           <StyledApp>
             <StyledBody>
               <Sidebar openDrawer={drawer} onNavClick={handleNavClick} />
@@ -86,6 +88,7 @@ class App extends Component {
 }
 
 const mapStateToProps = (state) => {
+  const connectionData = getActiveConnectionData(state)
   return {
     drawer: state.drawer,
     activeConnection: getActiveConnection(state),
@@ -94,7 +97,8 @@ const mapStateToProps = (state) => {
     cmdchar: getCmdChar(state),
     showUnknownCommandBanner: wasUnknownCommand(state),
     errorMessage: getErrorMessage(state),
-    loadUdc: allowOutgoingConnections(state)
+    loadUdc: allowOutgoingConnections(state),
+    titleString: (connectionData ? connectionData.username + '@' + connectionData.host + ' - ' : '') + 'Neo4j Browser'
   }
 }
 

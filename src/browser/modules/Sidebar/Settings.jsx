@@ -35,6 +35,13 @@ const visualSettings =
             type: 'radio',
             options: ['normal', 'outline']
           }
+        },
+        {
+          'editorAutocomplete': {
+            displayName: 'Trigger autocomplete when typing',
+            tooltip: 'Autocomplete written queries in editor (shortcut keys will still work)',
+            type: 'checkbox'
+          }
         }
       ]
     },
@@ -51,8 +58,26 @@ const visualSettings =
       ]
     },
     {
+      title: 'Network Connection',
+      settings: [
+        {
+          'useBoltRouting': {
+            displayName: 'Use bolt+routing',
+            tooltip: 'Use bolt+routing protocol when in a causal cluster.',
+            type: 'checkbox'
+          }
+        }
+      ]
+    },
+    {
       title: 'Result Frames',
       settings: [
+        {
+          maxFrames: {
+            displayName: 'Maximum number of result frames',
+            tooltip: 'Max number of result frames. When reached, old frames gets retired.'
+          }
+        },
         {
           maxHistory: {
             displayName: 'Max History',

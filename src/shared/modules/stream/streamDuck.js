@@ -19,24 +19,21 @@
  */
 
 import uuid from 'uuid'
+import 'rxjs/add/operator/do'
+import 'rxjs/add/operator/mapTo'
 import { moveInArray } from 'services/utils'
 import { hydrate } from 'services/duckUtils'
+import { UPDATE as SETTINGS_UPDATE } from '../settings/settingsDuck'
 
 export const NAME = 'frames'
 export const ADD = 'frames/ADD'
 export const REMOVE = 'frames/REMOVE'
 export const CLEAR_ALL = 'frames/CLEAR_ALL'
-export const CLEAR_IN_CONTEXT = 'frames/CLEAR_IN_CONTEXT'
 export const FRAME_TYPE_FILTER_UPDATED = 'frames/FRAME_TYPE_FILTER_UPDATED'
 export const PIN = `${NAME}/PIN`
 export const UNPIN = `${NAME}/UNPIN`
 export const SET_RECENT_VIEW = 'frames/SET_RECENT_VIEW'
-
-const initialState = {
-  allIds: [],
-  byId: {},
-  recentView: null
-}
+export const SET_MAX_FRAMES = NAME + '/SET_MAX_FRAMES'
 
 /**
  * Selectors
@@ -63,12 +60,11 @@ function addFrame (state, newState) {
     const pos = findFirstFreePos(state)
     allIds.splice(pos, 0, newState.id)
   }
-  return Object.assign(
-    {},
-    state,
-    {allIds: allIds},
-    {byId: byId}
-  )
+  return ensureFrameLimit({
+    ...state,
+    allIds,
+    byId
+  })
 }
 
 function removeFrame (state, id) {
@@ -76,19 +72,6 @@ function removeFrame (state, id) {
   delete byId[id]
   const allIds = state.allIds.filter((fid) => fid !== id)
   return Object.assign({}, state, {allIds, byId})
-}
-
-function clearInContextHelper (state, context) {
-  const toBeRemoved = getFramesInContext({[NAME]: state}, context)
-  const byId = Object.assign({}, state.byId)
-  toBeRemoved.forEach((f) => delete byId[f.id])
-  const idsToBeRemoved = toBeRemoved.map((f) => f.id)
-  const allIds = state.allIds.filter((fid) => idsToBeRemoved.indexOf(fid) < 0)
-  return Object.assign({}, state, {byId, allIds})
-}
-
-function clearHelper () {
-  return {...initialState}
 }
 
 function pinFrame (state, id) {
@@ -129,6 +112,28 @@ function setRecentViewHelper (state, recentView) {
   return Object.assign({}, state, {recentView})
 }
 
+function ensureFrameLimit (state) {
+  const limit = state.maxFrames || 1
+  if (state.allIds.length <= limit) return state
+  let numToRemove = state.allIds.length - limit
+  let removeIds = state.allIds.slice(-1 * numToRemove).filter((id) => !state.byId[id].isPinned)
+  let byId = {...state.byId}
+  removeIds.forEach((id) => delete byId[id])
+  return {
+    ...state,
+    allIds: state.allIds.slice(0, state.allIds.length - removeIds.length),
+    byId
+  }
+}
+
+/** Inital state */
+export const initialState = {
+  allIds: [],
+  byId: {},
+  recentView: null,
+  maxFrames: 30
+}
+
 /**
  * Reducer
 */
@@ -140,16 +145,17 @@ export default function reducer (state = initialState, action) {
       return addFrame(state, action.state)
     case REMOVE:
       return removeFrame(state, action.id)
-    case CLEAR_IN_CONTEXT:
-      return clearInContextHelper(state, action.context)
     case CLEAR_ALL:
-      return clearHelper()
+      return {...initialState}
     case PIN:
       return pinFrame(state, action.id)
     case UNPIN:
       return unpinFrame(state, action.id)
     case SET_RECENT_VIEW:
       return setRecentViewHelper(state, action.view)
+    case SET_MAX_FRAMES:
+      const newState = {...state, maxFrames: action.maxFrames}
+      return ensureFrameLimit(newState)
     default:
       return state
   }
@@ -167,13 +173,6 @@ export function remove (id) {
   return {
     type: REMOVE,
     id
-  }
-}
-
-export function clearInContext (context) {
-  return {
-    type: CLEAR_IN_CONTEXT,
-    context
   }
 }
 
@@ -203,3 +202,13 @@ export function setRecentView (view) {
     view
   }
 }
+
+// Epics
+export const maxFramesConfigEpic = (action$, store) =>
+  action$.ofType(SETTINGS_UPDATE)
+    .do((action) => {
+      const newMaxFrames = action.state.maxFrames
+      if (!newMaxFrames) return
+      store.dispatch({ type: SET_MAX_FRAMES, maxFrames: newMaxFrames })
+    })
+    .mapTo({ type: 'NOOP' })

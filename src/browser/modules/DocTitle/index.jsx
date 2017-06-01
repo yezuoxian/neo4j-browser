@@ -18,18 +18,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import Render from 'browser-components/Render'
-import FrameTemplate from './FrameTemplate'
-
-const ParamFrame = ({frame, params}) => {
-  return (
-    <FrameTemplate
-      header={frame}
-      contents={<Render if={frame.success}><pre>{JSON.stringify(frame.params, null, 2)}</pre></Render>}
-    >
-      <Render if={frame.success}><span>Successfully set your parameter</span></Render>
-      <Render if={!frame.success}><span>Something went wrong. Read help pages.</span></Render>
-    </FrameTemplate>
-  )
+const DocTitle = ({ titleString }) => {
+  document.title = titleString
+  return null
 }
-export default ParamFrame
+
+export default DocTitle

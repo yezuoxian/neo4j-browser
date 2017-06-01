@@ -19,43 +19,67 @@
  */
 
 import updateStatsFields from './updateStatisticsFields'
+import { v1 as neo4j } from 'neo4j-driver-alias'
 
-export function toObjects (records, intChecker, intConverter) {
+export function toObjects (records, converters) {
   const recordValues = records.map((record) => {
     let out = []
-    record.forEach((val, key) => out.push(itemIntToString(val, intChecker, intConverter)))
+    record.forEach((val, key) => out.push(itemIntToString(val, converters)))
     return out
   })
   return recordValues
 }
 
-export function recordsToTableArray (records, intChecker, intConverter) {
-  const recordValues = toObjects(records, intChecker, intConverter)
+export function recordsToTableArray (records, converters) {
+  const recordValues = toObjects(records, converters)
   const keys = records[0].keys
   return [[...keys], ...recordValues]
 }
 
-export function itemIntToString (item, intChecker, intConverter) {
-  if (intChecker(item)) return intConverter(item)
-  if (Array.isArray(item)) return arrayIntToString(item, intChecker, intConverter)
+export function itemIntToString (item, converters) {
+  if (converters.intChecker(item)) return converters.intConverter(item)
+  if (Array.isArray(item)) return arrayIntToString(item, converters)
   if (['number', 'string', 'boolean'].indexOf(typeof item) !== -1) return item
   if (item === null) return item
-  if (typeof item === 'object') return objIntToString(item, intChecker, intConverter)
+  if (typeof item === 'object') return objIntToString(item, converters)
 }
 
-export function arrayIntToString (arr, intChecker, intConverter) {
-  return arr.map((item) => itemIntToString(item, intChecker, intConverter))
+export function arrayIntToString (arr, converters) {
+  return arr.map((item) => itemIntToString(item, converters))
 }
 
-export function objIntToString (obj, intChecker, intConverter) {
+export function objIntToString (obj, converters) {
+  let entry = converters.objectConverter(obj, converters)
+
   let newObj = {}
-  Object.keys(obj).forEach((key) => {
-    newObj[key] = itemIntToString(obj[key], intChecker, intConverter)
-  })
+  if (Array.isArray(entry)) {
+    newObj = entry.map(item => itemIntToString(item, converters))
+  } else {
+    Object.keys(entry).forEach((key) => {
+      newObj[key] = itemIntToString(entry[key], converters)
+    })
+  }
   return newObj
 }
 
-export function extractPlan (result) {
+export function extractFromNeoObjects (obj, converters) {
+  if (obj instanceof neo4j.types.Node || obj instanceof neo4j.types.Relationship) {
+    return obj.properties
+  } else if (obj instanceof neo4j.types.Path) {
+    return [].concat.apply([], extractPathForRows(obj, converters))
+  }
+  return obj
+}
+
+const extractPathForRows = (path, converters) => {
+  return path.segments.map(function (segment) {
+    return [objIntToString(segment.start, converters),
+      objIntToString(segment.relationship, converters),
+      objIntToString(segment.end, converters)]
+  })
+}
+
+export function extractPlan (result, calculateTotalDbHits = false) {
   if (result.summary && (result.summary.plan || result.summary.profile)) {
     const rawPlan = result.summary.profile || result.summary.plan
     const boltPlanToRESTPlanShared = (plan) => {
@@ -78,9 +102,24 @@ export function extractPlan (result) {
     obj['KeyNames'] = rawPlan.arguments['KeyNames']
     obj['planner'] = rawPlan.arguments['planner']
     obj['runtime'] = rawPlan.arguments['runtime']
+
+    if (calculateTotalDbHits === true) {
+      obj.totalDbHits = collectHits(obj)
+    }
+
     return {root: obj}
   }
   return null
+}
+
+const collectHits = function (operator) {
+  let hits = operator.DbHits || 0
+  if (operator.children) {
+    hits = operator.children.reduce((acc, subOperator) => {
+      return acc + collectHits(subOperator)
+    }, hits)
+  }
+  return hits
 }
 
 export function extractNodesAndRelationshipsFromRecords (records, types) {
@@ -105,7 +144,7 @@ const resultContainsGraphKeys = (keys) => {
   return (keys.includes('nodes') && keys.includes('relationships'))
 }
 
-export function extractNodesAndRelationshipsFromRecordsForOldVis (records, types, filterRels, intChecker, intConverter) {
+export function extractNodesAndRelationshipsFromRecordsForOldVis (records, types, filterRels, converters) {
   if (records.length === 0) {
     return { nodes: [], relationships: [] }
   }
@@ -118,6 +157,7 @@ export function extractNodesAndRelationshipsFromRecordsForOldVis (records, types
   } else {
     records.forEach((record) => {
       let graphItems = keys.map((key) => record.get(key))
+      graphItems = flattenArray(recursivelyExtractGraphItems(types, graphItems)).filter((item) => item !== false)
       rawNodes = [...rawNodes, ...graphItems.filter((item) => item instanceof types.Node)]
       rawRels = [...rawRels, ...graphItems.filter((item) => item instanceof types.Relationship)]
       let paths = graphItems.filter((item) => item instanceof types.Path)
@@ -125,16 +165,36 @@ export function extractNodesAndRelationshipsFromRecordsForOldVis (records, types
     })
   }
   const nodes = rawNodes.map((item) => {
-    return {id: item.identity.toString(), labels: item.labels, properties: itemIntToString(item.properties, intChecker, intConverter)}
+    return {id: item.identity.toString(), labels: item.labels, properties: itemIntToString(item.properties, converters)}
   })
   let relationships = rawRels
   if (filterRels) {
     relationships = rawRels.filter((item) => nodes.filter((node) => node.id === item.start.toString()).length > 0 && nodes.filter((node) => node.id === item.end.toString()).length > 0)
   }
   relationships = relationships.map((item) => {
-    return {id: item.identity.toString(), startNodeId: item.start.toString(), endNodeId: item.end.toString(), type: item.type, properties: itemIntToString(item.properties, intChecker, intConverter)}
+    return {id: item.identity.toString(), startNodeId: item.start.toString(), endNodeId: item.end.toString(), type: item.type, properties: itemIntToString(item.properties, converters)}
   })
   return { nodes: nodes, relationships: relationships }
+}
+
+const recursivelyExtractGraphItems = (types, item) => {
+  if (item instanceof types.Node) return item
+  if (item instanceof types.Relationship) return item
+  if (item instanceof types.Path) return item
+  if (Array.isArray(item)) return item.map((i) => recursivelyExtractGraphItems(types, i))
+  if (['number', 'string', 'boolean'].indexOf(typeof item) !== -1) return false
+  if (item === null) return false
+  if (typeof item === 'object') {
+    return Object.keys(item).map((key) => recursivelyExtractGraphItems(types, item[key]))
+  }
+  return item
+}
+
+const flattenArray = (arr) => {
+  return arr.reduce((all, curr) => {
+    if (Array.isArray(curr)) return all.concat(flattenArray(curr))
+    return all.concat(curr)
+  }, [])
 }
 
 const extractNodesAndRelationshipsFromPath = (item, rawNodes, rawRels) => {

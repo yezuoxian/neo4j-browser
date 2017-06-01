@@ -57,6 +57,14 @@ export const throttle = (fn, time, context = null) => {
   }
 }
 
+export const firstSuccessPromise = (list, fn) => {
+  return list.reduce((promise, item) => {
+    return promise
+      .catch(() => fn(item))
+      .then((r) => Promise.resolve(r))
+  }, Promise.reject())
+}
+
 export const isRoutingHost = (host) => {
   return /^bolt\+routing:\/\//.test(host)
 }
@@ -72,13 +80,19 @@ export const hostIsAllowed = (uri, whitelist = null) => {
   const urlInfo = getUrlInfo(uri)
   const hostname = urlInfo.hostname
   const hostnamePlusProtocol = urlInfo.protocol + '//' + hostname
+  const whitelistedHosts = whitelist && whitelist !== '' ? extractWhitelistFromConfigString(whitelist) : []
+  return whitelistedHosts.indexOf(hostname) > -1 || whitelistedHosts.indexOf(hostnamePlusProtocol) > -1
+}
 
-  let whitelistedHosts = ['guides.neo4j.com', 'localhost']
-  if (whitelist && whitelist !== '') {
-    whitelistedHosts = whitelist.split(',')
-  }
-  return whitelistedHosts.indexOf(hostname) > -1 ||
-    whitelistedHosts.indexOf(hostnamePlusProtocol) > -1
+export const extractWhitelistFromConfigString = (str) => str.split(',').map((s) => s.trim().replace(/\/$/, ''))
+
+export const addProtocolsToUrlList = (list) => {
+  return list.reduce((all, uri) => {
+    if (!uri || uri === '*') return all
+    const urlInfo = getUrlInfo(uri)
+    if (urlInfo.protocol) return all.concat(uri)
+    return all.concat(['https://' + uri, 'http://' + uri])
+  }, [])
 }
 
 export const getUrlInfo = (url) => {
@@ -162,6 +176,27 @@ export const canUseDOM = () => !!(
   (typeof window !== 'undefined' &&
   window.document && window.document.createElement)
 )
+
+export const ecsapeCypherMetaItem = (str) => /^[A-Za-z][A-Za-z0-9_]*$/.test(str) ? str : '`' + str.replace(/`/g, '``') + '`'
+
+export const parseTimeMillis = (timeWithOrWithoutUnit) => {
+  timeWithOrWithoutUnit += '' // cast to string
+  const readUnit = timeWithOrWithoutUnit.match(/\D+/)
+  const value = parseInt(timeWithOrWithoutUnit)
+
+  const unit = (readUnit === undefined || readUnit === null) ? 's' : readUnit[0] // Assume seconds
+
+  switch (unit) {
+    case 'ms':
+      return value
+    case 's':
+      return value * 1000
+    case 'm':
+      return value * 60 * 1000
+    default:
+      return 0
+  }
+}
 
 export const stringifyMod = () => {
   const toString = Object.prototype.toString

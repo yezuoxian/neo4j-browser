@@ -39,7 +39,7 @@ const _getDriver = (host, auth, opts, protocol) => {
 const _validateConnection = (driver, res, rej) => {
   if (!driver || !driver.session) return rej('No connection')
   const tmp = driver.session()
-  tmp.run('CALL db.indexes()').then(() => {
+  tmp.run('CALL dbms.procedures()').then(() => {
     tmp.close()
     res(driver)
   }).catch((e) => {
@@ -198,8 +198,8 @@ export default {
   useRoutingConfig: (shouldWe) => (_useRoutingConfig = shouldWe),
   recordsToTableArray: (records, convertInts = true) => {
     const intChecker = convertInts ? neo4j.isInt : () => true
-    const intConverter = convertInts ? (val) => val.toString() : (val) => val
-    return mappings.recordsToTableArray(records, intChecker, intConverter)
+    const intConverter = convertInts ? (item) => mappings.itemIntToString(item, { intChecker: neo4j.isInt, intConverter: (val) => val.toNumber() }) : (val) => val
+    return mappings.recordsToTableArray(records, { intChecker, intConverter, objectConverter: mappings.extractFromNeoObjects })
   },
   stringifyRows: (rows) => {
     if (!Array.isArray(rows)) return rows
@@ -220,12 +220,12 @@ export default {
   extractNodesAndRelationshipsFromRecordsForOldVis: (records, filterRels = true) => {
     const intChecker = neo4j.isInt
     const intConverter = (val) => val.toString()
-    return mappings.extractNodesAndRelationshipsFromRecordsForOldVis(records, neo4j.types, filterRels, intChecker, intConverter)
+    return mappings.extractNodesAndRelationshipsFromRecordsForOldVis(records, neo4j.types, filterRels, { intChecker, intConverter, objectConverter: mappings.extractFromNeoObjects })
   },
-  extractPlan: (result) => {
-    return mappings.extractPlan(result)
+  extractPlan: (result, calculateTotalDbHits) => {
+    return mappings.extractPlan(result, calculateTotalDbHits)
   },
   retrieveFormattedUpdateStatistics: mappings.retrieveFormattedUpdateStatistics,
-  itemIntToNumber: (item) => mappings.itemIntToString(item, neo4j.isInt, (val) => val.toNumber()),
+  itemIntToNumber: (item) => mappings.itemIntToString(item, { intChecker: neo4j.isInt, intConverter: (val) => val.toNumber(), objectConverter: mappings.extractFromNeoObjects }),
   neo4j: neo4j
 }

@@ -51,6 +51,7 @@ const browserSyncConfig = {
 }
 export const getUseNewVisualization = (state) => state[NAME].useNewVis
 export const getCmdChar = (state) => state[NAME].cmdchar || initialState.cmdchar
+export const shouldEditorAutocomplete = (state) => state[NAME].editorAutocomplete !== false
 
 const initialState = {
   cmdchar: ':',
@@ -65,7 +66,9 @@ const initialState = {
   maxRows: 1000,
   shouldReportUdc: true,
   autoComplete: true,
-  scrollToTop: true
+  scrollToTop: true,
+  maxFrames: 30,
+  editorAutocomplete: true
 }
 
 export default function settings (state = initialState, action) {

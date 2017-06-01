@@ -18,15 +18,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/* global test, expect */
+/* global describe, test, expect */
 import { v1 as neo4j } from 'neo4j-driver-alias'
 import {
   itemIntToString,
   arrayIntToString,
-  objIntToString,
   extractNodesAndRelationshipsFromRecords,
+  extractNodesAndRelationshipsFromRecordsForOldVis,
   extractPlan,
-  flattenProperties
+  flattenProperties,
+  objIntToString
 } from './boltMappings'
 
 describe('boltMappings', () => {
@@ -50,7 +51,7 @@ describe('boltMappings', () => {
 
       // When and Then
       tests.forEach((test) => {
-        expect(itemIntToString(test.val, test.checker, test.converter)).toEqual(test.expected)
+        expect(itemIntToString(test.val, {intChecker: test.checker, intConverter: test.converter})).toEqual(test.expected)
       })
     })
   })
@@ -65,7 +66,7 @@ describe('boltMappings', () => {
 
       // When and Then
       tests.forEach((test) => {
-        expect(arrayIntToString(test.val, test.checker, test.converter)).toEqual(test.expected)
+        expect(arrayIntToString(test.val, {intChecker: test.checker, intConverter: test.converter})).toEqual(test.expected)
       })
     })
   })
@@ -112,7 +113,7 @@ describe('boltMappings', () => {
 
       // When and Then
       tests.forEach((test) => {
-        expect(objIntToString(test.val, test.checker, test.converter)).toEqual(test.expected)
+        expect(objIntToString(test.val, {intChecker: test.checker, intConverter: test.converter, objectConverter: (obj) => obj})).toEqual(test.expected)
       })
     })
   })
@@ -327,6 +328,43 @@ describe('boltMappings', () => {
 
       // Then
       expect(flattenedProperties).toEqual(result)
+    })
+  })
+  describe('extractNodesAndRelationshipsFromRecordsForOldVis', () => {
+    test('should recursively look for graph items', () => {
+      // Given
+      const firstNode = new neo4j.types.Node('1', ['Person'], {prop1: 'prop1'})
+      const nodeCollection = [
+        new neo4j.types.Node('2', ['Person'], {prop1: 'prop1'}),
+        new neo4j.types.Node('3', ['Person'], {prop1: 'prop1'}),
+        new neo4j.types.Node('4', ['Person'], {prop1: 'prop1'})
+      ]
+      const boltRecord = {
+        keys: ['n', 'c'],
+        get: (key) => {
+          if (key === 'n') {
+            return firstNode
+          }
+          if (key === 'c') {
+            return nodeCollection
+          }
+        }
+      }
+      const records = [boltRecord]
+
+      // When
+      const out = extractNodesAndRelationshipsFromRecordsForOldVis(
+        records,
+        neo4j.types,
+        false,
+        {
+          intChecker: () => true,
+          intConverter: (a) => a
+        }
+      )
+
+      // Then
+      expect(out.nodes.length).toEqual(4)
     })
   })
 })

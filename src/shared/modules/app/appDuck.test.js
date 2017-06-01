@@ -18,18 +18,34 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import Render from 'browser-components/Render'
-import FrameTemplate from './FrameTemplate'
+/* global test, expect */
+import reducer, { NAME, APP_START, getHostedUrl } from './appDuck'
 
-const ParamFrame = ({frame, params}) => {
-  return (
-    <FrameTemplate
-      header={frame}
-      contents={<Render if={frame.success}><pre>{JSON.stringify(frame.params, null, 2)}</pre></Render>}
-    >
-      <Render if={frame.success}><span>Successfully set your parameter</span></Render>
-      <Render if={!frame.success}><span>Something went wrong. Read help pages.</span></Render>
-    </FrameTemplate>
-  )
-}
-export default ParamFrame
+test('reducer stores hostedUrl', () => {
+  // Given
+  const url = 'xxx'
+  const initState = {}
+  const action = { type: APP_START, url }
+
+  // When
+  const state = reducer(initState, action)
+
+  // Then
+  expect(state.hostedUrl).toEqual(url)
+})
+
+test('selector getHostedUrl returns whats in the store', () => {
+  // Given
+  const url = 'xxx'
+  const initState = {}
+  const action = { type: APP_START, url }
+
+  // Then
+  expect(getHostedUrl({[NAME]: initState})).toEqual(null)
+
+  // When
+  const state = reducer(initState, action)
+
+  // Then
+  expect(getHostedUrl({[NAME]: state})).toEqual(url)
+})
