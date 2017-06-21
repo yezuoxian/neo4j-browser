@@ -38,7 +38,6 @@ import 'cypher-codemirror/dist/cypher-codemirror-syntax.css'
 }
 
 export default class CodeMirror extends Component {
-
   constructor (props) {
     super(props)
     this.state = {

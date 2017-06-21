@@ -45,7 +45,7 @@ export default class ChangePasswordForm extends Component {
       this.formKeyHandler = new FormKeyHandler(this.validateSame.bind(this))
     } else {
       this.formKeyHandler = this.props.formKeyHandler
-      this.formKeyHandler.regsiterSubmit(this.validateSame.bind(this))
+      this.formKeyHandler.registerSubmit(this.validateSame.bind(this))
     }
   }
 
@@ -68,7 +68,7 @@ export default class ChangePasswordForm extends Component {
   }
 
   render () {
-    const inputTabOffset = this.props.children ? 1 : 0
+    const inputTabOffset = this.props.children.length
     return (
       <StyledConnectionForm>
         {this.props.children}
@@ -85,4 +85,3 @@ export default class ChangePasswordForm extends Component {
     )
   }
 }
-
